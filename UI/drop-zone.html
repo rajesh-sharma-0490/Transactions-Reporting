@@ -1,0 +1,335 @@
+<link rel="import" href="./bower_components/polymer/polymer.html">
+
+<script src="./libs/js/jzip.js"></script>
+<script src="./libs/js/xlsx.js"></script>
+<script src="./libs/js/jquery.js"></script>
+<script type="text/javascript" src="./bower_components//jsSHA//src/sha.js"></script>
+
+<link rel="stylesheet" href="./libs/css/fontawesome.css">
+
+<dom-module id='drop-zone'>
+    <template>
+        <style>
+            #dropZone{
+                border: 2px dashed lightblue;
+                -moz-border-radius: 5px;
+                -webkit-border-radius: 5px;
+                border-radius: 5px;
+                padding: 50px;
+                text-align: center;
+                font-size: 25px;
+                font-weight: bold;
+                color: #bbb;
+                background-color: white;
+            }    
+
+            #dropZone:hover{
+                color: green;
+            }
+        </style>
+
+        <div id="dropZone">Drop files here.</div>
+
+    </template>
+
+    <script>
+        Polymer({
+            is: 'drop-zone',
+            properties: {
+                apiUrl: {
+                    type: String
+                },
+
+                _propNameMap: {
+                    type: Object,
+                    value: {
+                        dealerName: null,
+                        materialName: null,
+                        receivedOn: null,
+                        time: null,
+                        challanNo: null,
+                        invoiceNo: null,
+                        quantity: null,
+                        weight: null,
+                        cartingCharge: null,
+                        rate: null,
+                        amount: null,
+                        cgst: null,
+                        sgst: null
+                    }
+                },
+
+                _units: {
+                    type: Array,
+                    value: ['kg', 'cm', 'hrs', 'ton', 'mt']
+                }
+            },
+
+            ready: function(){
+                var dropZone = this.$.dropZone;
+                dropZone.addEventListener('dragover', this._handleDragOver, false);
+                dropZone.addEventListener('drop', this._handleFileSelect.bind(this), false);
+
+                this._propNames = Object.keys(this._propNameMap);
+            },
+
+            _handleDragOver: function(event){
+                event.stopPropagation();
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
+            },
+
+            _getTransactionsFromFile: function(file){
+                var transactions = [];
+                var that = this;
+                return this._parseExcel(file)
+                .then(function(sheetDataCollection){
+                    sheetDataCollection.forEach(function(sheetRows){
+                        var parsedRows = that._parseSheetRows(sheetRows) || [];
+                        if(parsedRows.length > 0)
+                            transactions = transactions.concat(parsedRows);
+                    });
+                    transactions = transactions.filter(function(transaction){return Object.keys(transaction).length > 0;})
+                    that._fillInVirtualChallanNumbers(transactions);
+                    return transactions;
+                });
+            },
+
+            _getTransactionBatches: function(transactions){
+                var batches = [];
+
+                while(transactions.length > 0)
+                    batches.push(transactions.splice(0, 500));
+
+                return batches;
+            },
+
+            _removeDuplicates: function(transactions){
+                var map = {};
+
+                transactions.forEach(function(transaction){
+                    map[transaction.challanNo] = transaction;
+                });
+
+                return Object.keys(map).map(function(key){
+                    return map[key];
+                })
+            },
+
+            _uploadTransactions: function(transactions){
+                var batches = this._getTransactionBatches(transactions);
+
+                var url = [this.apiUrl, 'uploadData'].join('/');
+
+                var taskChain = Promise.resolve();
+
+                batches.forEach(function(batch){
+                    taskChain = taskChain.then(function(){
+                        return axios.post(url, {transactions: batch});
+                    })
+                });
+
+                return taskChain;
+            },
+
+            _getNextCyclePromise: function(){
+                return new Promise(function(resolve){
+                    setTimeout(function(){
+                        resolve();
+                    }, 0);
+                });
+            },
+
+            _processFileUploads: function(files){
+                var that = this;
+                var transactions = [];
+                var conversionTasks = [];
+
+                for(var i=0; i<files.length; i++)
+                    conversionTasks.push(that._getTransactionsFromFile(files[i]));
+
+                return Promise.all(conversionTasks).then(function(values){
+                    var allTransactions = [];
+                    values.forEach(function(value){
+                        allTransactions = allTransactions.concat(value);
+                    });
+                    
+                    var uniqueTransactions = that._removeDuplicates(allTransactions);
+                    return that._uploadTransactions(uniqueTransactions);
+                })
+                .then(function(){
+                    that.fire('show-toast', 'Files uploaded successfully.');
+                })
+                .catch(function(error){
+
+                });
+            },
+
+            _handleFileSelect: function(event){
+                event.stopPropagation();
+                event.preventDefault();
+            
+                var files = event.dataTransfer.files;
+                
+                var that = this;
+                this.fire('show-loader');
+                return this._getNextCyclePromise()
+                .then(function(){
+                    return that._processFileUploads(files);
+                })
+                .catch(function(error){
+                    console.log(error);
+                })
+                .then(function(){
+                   that.fire('hide-loader'); 
+                });
+            },
+
+            _fillInVirtualChallanNumbers: function(transactions){
+                transactions.forEach(function(transaction){
+                    if(transaction.challanNo)
+                        return;
+
+                    var values = [];
+                    Object.keys(transaction).forEach(function(key){
+                        values.push(transaction[key]);
+                    });
+
+                    var shaObj = new jsSHA("SHA-256", "TEXT");
+                    shaObj.update(values.join(':'));
+                    transaction.challanNo = shaObj.getHash("B64");
+                });
+            },
+
+            _parseExcel: function(file){
+                return new Promise(function(resolve, reject){
+                    var reader = new FileReader();
+
+                    reader.onload = function(e) {
+                        var data = e.target.result;
+                        var workbook = XLSX.read(data, {
+                            type: 'binary'
+                        });
+
+                        var sheetDataCollection = [];
+                        workbook.SheetNames.forEach(function(sheetName) {
+                            var sheetData = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[sheetName]);
+                            if(sheetData.length > 0)
+                                sheetDataCollection.push(sheetData);
+                        });
+
+                        resolve(sheetDataCollection);
+                    };
+
+                    reader.onerror = function(ex) {
+                        reject(ex);
+                    };
+
+                    reader.readAsBinaryString(file);
+                });
+            },
+
+            _parseSheetRows: function(sheetRows){
+                var propertyNameMap = this._getPropertyNameMap(Object.assign({}, ...sheetRows));
+
+                var quantityUnit = this._getUnitFromHeader(propertyNameMap.quantity);
+                var weightUnit = this._getUnitFromHeader(propertyNameMap.weight);
+
+                var parsedCollection = [];
+
+                var that = this;
+                sheetRows.forEach(function(sheetRow){
+                    var parsed = {};
+                    that._propNames.forEach(function(propName){
+                        var propValue = sheetRow[propertyNameMap[propName]];
+                        if(propValue == null || propValue == undefined)
+                            return;
+
+                        switch(propName){
+                            case 'quantity':
+                                var quantityInfo = that._parseQuantity(propValue);
+                                parsed.quantity = quantityInfo.quantity;
+                                parsed.quantityUnit = parsed.unit || quantityUnit;
+                                break;
+                            default: 
+                                parsed[propName] = propValue;
+                        }
+                    });
+                    parsedCollection.push(parsed);
+                });
+
+                return parsedCollection;
+            },
+
+            _getUnitFromHeader: function(header){
+                if(!header)
+                    return null;
+
+                header = header.replace('.', '');
+                header = header.replace('-', '');
+                header = header.replace('/', '');
+
+                header = header.toLowerCase();
+                for(var i=0; i<this._units.length; i++){
+                    if(header.indexOf(this._units[i]) >= 0)
+                        return this._units[i];
+                }
+
+                return null;
+
+                //var match = (header || '').match(/\(([^)]+)\)/)[1];
+
+                //return !match ? null : match[1];
+            },
+
+            _parseQuantity: function(quantity){
+                quantity = quantity.toString();
+
+                var numericPart = quantity.match(/[0-9]*/)[0];
+                var unitPart = quantity.slice(numericPart.length).trim();
+
+                return {
+                    quantity: numericPart,
+                    unit: unitPart
+                };
+            },
+
+            _getPropertyNameMap: function(sheetRow){
+                var map = JSON.parse(JSON.stringify(this._propNameMap));
+
+                var that = this;
+                Object.keys(sheetRow).forEach(function(key, index){
+                    var lowerCaseKey = key.trim().toLowerCase();
+                    if(lowerCaseKey.indexOf('dealer') >= 0)
+                        map.dealerName = key;
+                    else if(lowerCaseKey.indexOf('material') >= 0)
+                        map.materialName = key;
+                    else if(lowerCaseKey.indexOf('rate') >= 0)
+                        map.rate = key;
+                    else if(lowerCaseKey.indexOf('amount') >= 0)
+                        map.amount = key;
+                    else if(lowerCaseKey.indexOf('cgst') >= 0)
+                        map.cgst = key;
+                    else if(lowerCaseKey.indexOf('sgst') >= 0)
+                        map.sgst = key;
+                    else if(lowerCaseKey.indexOf('challan') >= 0)
+                        map.challanNo = key;
+                    else if(lowerCaseKey.indexOf('invoice') >= 0)
+                        map.invoiceNo = key;
+                    else if(lowerCaseKey.indexOf('carting') >= 0)
+                        map.cartingCharge = key;
+                    else if(lowerCaseKey.startsWith('received'))
+                        map.receivedOn = key;
+                    else if(lowerCaseKey.indexOf('time') >= 0)
+                        map.time = key;
+                    else if(lowerCaseKey.indexOf('quantity') >= 0 || lowerCaseKey.indexOf('qty') >= 0)
+                        map.quantity = key;
+                    else if(lowerCaseKey.indexOf('weight') >= 0 || lowerCaseKey.indexOf('wgt') >= 0)
+                        map.weight = key;
+                });
+
+                return map;
+            }
+        });
+    </script>
+</dom-module>

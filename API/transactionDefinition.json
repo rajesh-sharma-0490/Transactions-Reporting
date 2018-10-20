@@ -1,0 +1,43 @@
+[{
+    "name": "invoiceNo",
+    "type": "string"
+},{
+    "name": "dealerName",
+    "type": "string"
+},{
+    "name": "materialName",
+    "type": "string"
+},{
+    "name": "receivedOn",
+    "type": "string"
+},{
+    "name": "time",
+    "type": "string"
+},{
+    "name": "quantity",
+    "type": "number"
+},{
+    "name": "quantityUnit",
+    "type": "string"
+},{
+    "name": "weight",
+    "type": "number"
+},{
+    "name": "weightUnit",
+    "type": "string"
+},{
+    "name": "cartingCharge",
+    "type": "number"
+},{
+    "name": "rate",
+    "type": "number"
+},{
+    "name": "amount",
+    "type": "number"
+},{
+    "name": "cgst",
+    "type": "number"
+},{
+    "name": "sgst",
+    "type": "number"
+}]

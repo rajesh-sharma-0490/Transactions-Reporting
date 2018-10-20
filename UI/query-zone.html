@@ -1,0 +1,322 @@
+<link rel="import" href="./bower_components/polymer/polymer.html">
+<link href="./bower_components/select2/dist/css/select2.min.css" rel="stylesheet" />
+<script src="./bower_components/select2/vendor/jquery-2.1.0.js"></script>
+<script src="./bower_components/select2/dist/js/select2.min.js"></script>
+<link rel="import" href="./bower_components/tags-input/tags-input.html">
+<link rel="import" href="./bower_components/brainy-table/brainy-table.html">
+<script src="./libs/js/moment.min.js"></script>
+<script src="./libs/js/dateRangePicker.min.js"></script>
+<link href="./libs/css/dateRangePicker.css" rel="stylesheet" />
+
+<dom-module id='query-zone'>
+    <template>
+        <style>
+            .queryParams{
+                margin-top: 50px;
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                height: 90px;
+                border: 1px solid lightgray;
+                background-color: white;
+            }
+
+            #dealerName{
+                width: 400px;
+            }
+
+            #materialFilters{
+                width: 500px;
+            }
+
+            :host{
+                background-color: white;
+                --brainy-tr-odd:{
+                    background-color: #eee;
+                }
+
+                --brainy-tr-hover:{
+                    background-color: lightgray
+                }
+            }
+
+            .metaInfo{
+                display: flex;
+                justify-content: flex-end;
+                margin-top: 25px;
+                margin-bottom: 25px;
+                font-size: 20px;
+                font-weight: bold;
+                padding-right: 20px;
+            }
+
+            #dateRange{
+                width: 250px;
+                height: 25px;
+            }
+        </style>
+
+        
+        <div class='queryParams'>
+            <select class="" id="dealerName">
+                <option></option>
+            </select>
+
+            <tags-input id='materialFilters' label="Material Name Filters" tag-label="Add More Filters"
+                tags='{{_materialFilters}}' separator=','></tags-input>
+
+            <input type="text" id='dateRange' value="" placeholder="Select date range"/>
+        </div>
+
+        <template is='dom-if' if='[[_areTransactionsPresent(_transactions)]]'>
+            <div class='metaInfo'>
+                Total: [[_total]]
+            </div>
+            
+            <brainy-table items="[[_filteredTransactions]]" page-size="10">
+                <brainy-table-column name="Challan No">
+                    <template>[[item.challanNo]]</template>
+                </brainy-table-column>
+                <brainy-table-column name="Invoice No">
+                    <template>[[item.invoiceNo]]</template>
+                </brainy-table-column>
+                <brainy-table-column name="Material Name">
+                    <template>[[item.materialName]]</template>
+                </brainy-table-column>
+                <brainy-table-column name="Received On">
+                    <template>[[item.receivedOn]]</template>
+                </brainy-table-column>
+                <brainy-table-column name="Quantity">
+                    <template>[[_getQuantity(item)]]</template>
+                </brainy-table-column>
+                <brainy-table-column name="Rate">
+                    <template>[[_extractNumber(item, 'rate')]]</template>
+                </brainy-table-column>
+                <brainy-table-column name="CGST">
+                    <template>[[_extractNumber(item, 'cgst')]]</template>
+                </brainy-table-column>
+                <brainy-table-column name="SGST">
+                    <template>[[_extractNumber(item, 'sgst')]]</template>
+                </brainy-table-column>
+                <brainy-table-column name="Total">
+                    <template>[[_getTotal(item)]]</template>
+                </brainy-table-column>
+            </brainy-table>
+        </template>
+    </template>
+
+    <script>
+        Polymer({
+            is: 'query-zone',
+            properties: {
+                apiUrl: {
+                    type: String
+                },
+
+                _dealerName: {
+                    type: String,
+                    observer: '_search'
+                },
+
+                _transactions: {
+                    type: Array,
+                    value: []
+                },
+
+                _materialFilters: {
+                    type: Array,
+                    value: []
+                },
+
+                _filteredTransactions: {
+                    type: Array,
+                    value: [],
+                    observer: '_calculateTotal'
+                },
+
+                _total: {
+                    type: Number,
+                    value: 0
+                },
+
+                _dateRange: {
+                    type: Object,
+                    value: null
+                }
+            },
+
+            observers: [
+                "_setFilteredTransactions(_transactions, _materialFilters, _dateRange)"
+            ],
+
+            listeners: {
+                'tag-added': '_setFilteredTransactions',
+                'tag-removed': '_setFilteredTransactions'
+            },
+
+            ready: function(){
+                this._initializeDealerSelection();
+                this._initializeDateRange();
+            },
+
+            _initializeDateRange: function(){
+                var element = $('#dateRange');
+                var that = this;
+                element.daterangepicker({
+                    opens: 'left',
+                    autoUpdateInput: false,
+                    locale: {
+                        cancelLabel: 'Clear'
+                    }
+                });
+
+                element.on('apply.daterangepicker', function(ev, picker) {
+                    $(this).val(picker.startDate.format('MM/DD/YYYY') + ' - ' + picker.endDate.format('MM/DD/YYYY'));
+                    that._dateRange = {
+                        start: picker.startDate.startOf('day'),
+                        end: picker.endDate.endOf('day')
+                    };
+                });
+
+                element.on('cancel.daterangepicker', function(ev, picker) {
+                    $(this).val('');
+                    that._dateRange = null;
+                });
+            },
+
+            _initializeDealerSelection: function(){
+                var that = this;
+                var selectControl = $(this.querySelector('#dealerName'));
+                selectControl.select2({
+                    placeholder: 'Choose a dealer',
+                    allowClear: true
+                });
+
+                selectControl.on('change', function(e){
+                    that._dealerName = this.value;
+                });
+
+                this.fire('show-loader');
+                this._getDealerNames().then(function(response){
+                    var dealerNames = response.data.dealerNames;
+                    selectControl.select2({
+                        data: dealerNames,
+                        placeholder: 'Choose a dealer',
+                    });
+                })
+                .catch(function(error){
+                    console.log(error);
+                })
+                .then(function(){
+                    that.fire('hide-loader');
+                });
+            },
+
+            _getDealerNames: function(){
+                var url = [this.apiUrl, 'dealerNames'].join('/');
+
+                return axios.get(url);
+            },
+
+            _processTransactionFields: function(transactions){
+                (transactions || []).forEach(function(transaction){
+                    if(transaction.receivedOn){
+                        var parsed = moment(transaction.receivedOn);
+                        if(parsed.isValid())
+                            transaction.date = parsed.hours(12);
+                    }
+                });
+
+                return transactions;
+            },
+
+            _search: function(){
+                var url = [this.apiUrl, 'dealer', this._dealerName].join('/');
+
+                var that = this;
+                this.fire('show-loader');
+                axios.get(url).then(function(response){
+                    that._transactions = that._processTransactionFields(response.data.transactions || []);
+                })
+                .catch(function(error){
+                    console.log(error);
+                })
+                .then(function(){
+                    that.fire('hide-loader');
+                });
+            },
+
+            _getQuantity: function(item){
+                return [item.quantity || '', item.quantityUnit || ''].join(' ').trim();
+            },
+
+            _extractNumber: function(item, field, defaultValue = ''){
+                if(item[field] == null || item[field] == undefined || isNaN(item[field]))
+                    return defaultValue;
+
+                return Number(item[field]);
+            },
+
+            _areTransactionsPresent: function(transactions){
+                return transactions.length > 0;
+            },
+
+            _getTotal: function(item){
+                var quantity = this._extractNumber(item, 'quantity', 0);
+                var rate = this._extractNumber(item, 'rate', 0);
+                var cgst = this._extractNumber(item, 'cgst', 0);
+                var sgst = this._extractNumber(item, 'sgst', 0);
+
+                return Number(((quantity * rate) + cgst + sgst).toFixed(2));
+            },
+
+            _setFilteredTransactions: function(){
+                var that = this;
+                var materialFilters = (this._materialFilters || []).map(function(filter){
+                    return filter.trim().toLowerCase();
+                });
+
+                if(materialFilters.length == 0 && !this._dateRange){
+                    this._filteredTransactions = this._transactions;
+                    return;
+                }
+                
+                this._filteredTransactions = (this._transactions || [])
+                    .filter(function(transaction){
+                        var filtersPassed = false;
+                        if(materialFilters.length > 0){
+                            for(var i=0; i<materialFilters.length; i++){
+                                if(transaction.materialName.toLowerCase().indexOf(materialFilters[i]) >= 0){
+                                    filtersPassed = true;
+                                    break;
+                                }
+                                transaction.materialName
+                            }
+                        }else
+                            filtersPassed = true;
+
+                        if(!that._dateRange)
+                            return filtersPassed;
+
+                        if(!transaction.date)
+                            return false;
+
+                        filtersPassed = filtersPassed && transaction.date.isBetween(that._dateRange.start, that._dateRange.end);
+
+                        return filtersPassed;
+                    });
+            },
+
+            _calculateTotal: function(){
+                var total = 0;
+
+                var that = this;
+                (this._filteredTransactions || []).forEach(function(transaction){
+                    total += that._getTotal(transaction);
+                });
+
+                this._total = total.toFixed(2);
+            }
+        });
+    </script>
+</dom-module>

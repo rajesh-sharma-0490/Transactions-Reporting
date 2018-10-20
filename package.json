@@ -1,0 +1,17 @@
+{
+    "name": "excel-report",
+    "version": "0.0.1",
+    "description": "Custom excel reporting",
+    "scripts": {},
+    "repository": {},
+    "author": "Kratos",
+    "dependencies": {
+        "aws-sdk": "^2.334.0",
+        "aws-serverless-express": "^3.0.0",
+        "body-parser": "^1.17.1",
+        "express": "^4.16.4",
+        "moment": "^2.22.2",
+        "underscore": "^1.9.1"
+    },
+    "devDependencies": {}
+}

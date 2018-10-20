@@ -1,0 +1,13 @@
+{
+  "name": "excel-reporting",
+  "dependencies": {
+    "polymer": "Polymer/polymer#^1.6.0",
+    "jsSHA": "jssha#^2.3.1",
+    "axios": "^0.18.0",
+    "select2": "~4.0",
+    "tags-input": "jifalops/tags-input#0.3.0",
+    "paper-button": "PolymerElements/paper-button#2.0.0",
+    "brainy-table": "OWOX/brainy-table#^1.9.4",
+    "paper-toast": "PolymerElements/paper-toast#2.1.2"
+  }
+}

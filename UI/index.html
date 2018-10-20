@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+    <head>
+        <script src='./bower_components/webcomponentsjs/webcomponents.js'></script>
+        <script type="text/javascript" src="./bower_components/axios/dist/axios.min.js"></script>
+
+        <link rel="import" href="./bower_components/polymer/polymer.html">
+        <link rel="import" href="./drop-zone.html">
+        <link rel="import" href="./query-zone.html">
+        <link rel="import" href="./bower_components/paper-toast/paper-toast.html">
+
+        <style>
+            body{
+                background-color: #f5f6fa;
+            }
+            #loader {
+                position:fixed;
+                width:100%;
+                left:0;right:0;top:0;bottom:0;
+                background-color: rgba(255,255,255,0.7);
+                z-index:9999;
+                display:none;
+            }
+
+            @-webkit-keyframes spin {
+                from {-webkit-transform:rotate(0deg);}
+                to {-webkit-transform:rotate(360deg);}
+            }
+
+            @keyframes spin {
+                from {transform:rotate(0deg);}
+                to {transform:rotate(360deg);}
+            }
+
+            #loader::after {
+                content:'';
+                display:block;
+                position:absolute;
+                left:48%;top:40%;
+                width:40px;height:40px;
+                border-style:solid;
+                border-color:black;
+                border-top-color:transparent;
+                border-width: 4px;
+                border-radius:50%;
+                -webkit-animation: spin .8s linear infinite;
+                animation: spin .8s linear infinite;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="loader"></div>
+        <drop-zone api-url='http://localhost:9000'></drop-zone>
+        <query-zone api-url='http://localhost:9000'></query-zone>
+        <paper-toast id='toast'></paper-toast>
+
+        <script>
+            [$('drop-zone'), $('query-zone')].forEach(function(element){
+                element.on('show-loader', function(){
+                    $('#loader').show();
+                });
+
+                element.on('hide-loader', function(){
+                    $('#loader').hide();
+                });
+
+                element.on('show-toast', function(e){
+                    var toast = document.querySelector('#toast');
+                    toast.text = e.originalEvent.detail;
+                    toast.open();
+                })
+            });
+        </script>
+    </body>
+</html>
