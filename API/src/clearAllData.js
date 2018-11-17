@@ -4,7 +4,7 @@ exports.handler = (function(){
     const dealerCrud = require('./dealerCrud');
 
     return function(req, res){
-        Promise.all(transactionsCrud.deleteAllTransactions(), dealerCrud.deleteAllDealerNames())
+        Promise.all([transactionsCrud.deleteAllTransactions(), dealerCrud.deleteAllDealerNames()])
         .then(function(){
             res.status(200).send();
         })

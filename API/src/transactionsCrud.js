@@ -157,7 +157,7 @@ module.exports = (function(){
                         var delRq = {
                             TableName: settings.dynamoDb.tableNames.transactionsTableName,
                             Key: {
-                                Id: item.Id
+                                challanNo: _item.challanNo
                             }
                         };
                         deletionTasks.push(client.deleteItem(delRq).promise());

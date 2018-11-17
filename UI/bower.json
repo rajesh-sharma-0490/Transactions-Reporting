@@ -8,6 +8,9 @@
     "tags-input": "jifalops/tags-input#0.3.0",
     "paper-button": "PolymerElements/paper-button#2.0.0",
     "brainy-table": "OWOX/brainy-table#^1.9.4",
-    "paper-toast": "PolymerElements/paper-toast#2.1.2"
+    "paper-toast": "PolymerElements/paper-toast#2.1.2",
+    "paper-dialog": "PolymerElements/paper-dialog#^2.0.0",
+    "paper-input": "PolymerElements/paper-input#^1.1.24",
+    "keyboardjs": "^2.5.0"
   }
 }

@@ -92,7 +92,7 @@ module.exports = (function(){
                         var delRq = {
                             TableName: settings.dynamoDb.tableNames.dealersTableName,
                             Key: {
-                                Id: item.Id
+                                dealerName: _item.dealerName
                             }
                         };
                         deletionTasks.push(client.deleteItem(delRq).promise());

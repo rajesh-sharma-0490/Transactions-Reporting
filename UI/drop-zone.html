@@ -1,9 +1,12 @@
 <link rel="import" href="./bower_components/polymer/polymer.html">
+<link rel="import" href="./bower_components/paper-dialog/paper-dialog.html">
+<link rel="import" href="./bower_components/paper-input/paper-input.html">
 
 <script src="./libs/js/jzip.js"></script>
 <script src="./libs/js/xlsx.js"></script>
 <script src="./libs/js/jquery.js"></script>
 <script type="text/javascript" src="./bower_components//jsSHA//src/sha.js"></script>
+<script type='text/javascript' src='./bower_components/keyboardjs/dist/keyboard.min.js'></script>
 
 <link rel="stylesheet" href="./libs/css/fontawesome.css">
 
@@ -26,9 +29,33 @@
             #dropZone:hover{
                 color: green;
             }
+
+            :host #overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                right: 0;
+                background-color: #444;
+                opacity: 0.5;
+                z-index: 100;
+            }
+
+            paper-dialog{
+                width: 350px;
+            }
         </style>
 
+        <template is="dom-if" if="[[_isModalOpen]]">
+            <div id="overlay" on-tap="close">
+            </div>
+        </template>
+
         <div id="dropZone">Drop files here.</div>
+
+        <paper-dialog id="modal" on-opened-changed='_modalToggled'> 
+            <paper-input id='modalInput' label='Enter "yes" to delete all data' on-keydown='_handleDeletion'></paper-input>
+        </paper-dialog>
 
     </template>
 
@@ -38,6 +65,11 @@
             properties: {
                 apiUrl: {
                     type: String
+                },
+
+                _isModalOpen:{
+                    type: Boolean,
+                    value: false
                 },
 
                 _propNameMap: {
@@ -71,12 +103,52 @@
                 dropZone.addEventListener('drop', this._handleFileSelect.bind(this), false);
 
                 this._propNames = Object.keys(this._propNameMap);
+                this._hookDeletionEvent();
+            },
+
+            _hookDeletionEvent: function(){
+                var that = this;
+                window.keyboardJS.bind('shift + d', function(){
+                    that.$.modal.open();
+                })
+            },
+
+            _modalToggled: function(){
+                this._isModalOpen = this.$.modal.opened;
             },
 
             _handleDragOver: function(event){
                 event.stopPropagation();
                 event.preventDefault();
                 event.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
+            },
+
+            _handleDeletion: function(e){
+                if (e.keyCode !== 13)
+                    return;
+
+                var input = this.querySelector('#modalInput');
+                if(input.value != 'yes'){
+                    input.value = '';
+                    this.$.modal.close();
+                    return;
+                }
+
+                var url = [this.apiUrl, 'clearAllData'].join('/');
+
+                this.fire('show-loader');
+                var that = this;
+                
+                axios.get(url)
+                .catch(function(error){
+                    console.log(error)
+                    that.fire('show-toast', error.response.data.error);
+                })
+                .then(function(){
+                    that.fire('hide-loader');
+                    that.$.modal.close();
+                    input.value = '';
+                })
             },
 
             _getTransactionsFromFile: function(file){
@@ -162,7 +234,8 @@
                     that.fire('files-uploaded');
                 })
                 .catch(function(error){
-
+                    console.log(error)
+                    that.fire('show-toast', error.response.data.error);
                 });
             },
 
@@ -179,7 +252,8 @@
                     return that._processFileUploads(files);
                 })
                 .catch(function(error){
-                    console.log(error);
+                    console.log(error)
+                    that.fire('show-toast', error.response.data.error);
                 })
                 .then(function(){
                    that.fire('hide-loader'); 
