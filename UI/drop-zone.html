@@ -140,6 +140,9 @@
                 var that = this;
                 
                 axios.get(url)
+                .then(function(){
+                    that.fire('show-toast', 'Entire data purged.');
+                })
                 .catch(function(error){
                     console.log(error)
                     that.fire('show-toast', error.response.data.error);
