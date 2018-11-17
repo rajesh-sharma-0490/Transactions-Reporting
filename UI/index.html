@@ -77,6 +77,10 @@
             dropZone.on('files-uploaded', function(){
                 queryZone[0].updateDealerNames();
             })
+
+            dropZone.on('data-purged', function(){
+                queryZone[0].updateDealerNames();
+            })
         </script>
     </body>
 </html>

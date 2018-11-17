@@ -141,6 +141,7 @@
                 
                 axios.get(url)
                 .then(function(){
+                    that.fire('data-purged');
                     that.fire('show-toast', 'Entire data purged.');
                 })
                 .catch(function(error){
