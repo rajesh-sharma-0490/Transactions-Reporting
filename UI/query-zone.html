@@ -212,7 +212,7 @@
                 })
                 .catch(function(error){
                     console.log(error)
-                    that.fire('show-toast', error.response.data.error);
+                    that.fire('show-toast', error.message || error.response.data.error);
                 })
                 .then(function(){
                     that.fire('hide-loader');
@@ -247,7 +247,7 @@
                 })
                 .catch(function(error){
                     console.log(error)
-                    that.fire('show-toast', error.response.data.error);
+                    that.fire('show-toast', error.message || error.response.data.error);
                 })
                 .then(function(){
                     that.fire('hide-loader');
