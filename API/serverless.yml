@@ -88,12 +88,12 @@ resources:
                 KeyType: RANGE
             ProvisionedThroughput:
               ReadCapacityUnits: 10
-              WriteCapacityUnits: 8
+              WriteCapacityUnits: 10
             Projection:
               ProjectionType: ALL
         ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 8
+          ReadCapacityUnits: 10
+          WriteCapacityUnits: 10
     dealerssTable:
       Type: AWS::DynamoDB::Table
       Properties:
