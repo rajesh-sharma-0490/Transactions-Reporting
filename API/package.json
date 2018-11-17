@@ -1,0 +1,16 @@
+{
+  "name": "transactions-reporting-api",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {},
+  "author": "Kratos",
+  "dependencies": {
+    "aws-serverless-express": "^3.0.0",
+    "body-parser": "^1.17.1",
+    "express": "^4.15.2"
+  },
+  "devDependencies": {
+    "aws-sdk": "^2.228.1",
+    "serverless-domain-manager": "^2.3.6"
+  }
+}

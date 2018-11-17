@@ -5,7 +5,7 @@ module.exports = (function(){
     const writeBatchSize = 20;
 
     var fs = require('fs');
-    var allFields = JSON.parse(fs.readFileSync('transactionDefinition.json'));
+    var allFields = JSON.parse(fs.readFileSync('src/transactionDefinition.json'));
 
     function toDbModel(transaction){
         var translated = {
@@ -136,9 +136,54 @@ module.exports = (function(){
             iterate();
         });
     }
+
+    const deleteAllTransactions = function(){
+        var client = awsServices.getDynamoDBClient();
+
+        var request = {
+            TableName: settings.dynamoDb.tableNames.transactionsTableName
+        };
+
+        return new Promise(function (resolve, reject) {
+            function iterate() {
+                client.scan(request, function (err, response) {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+
+                    var deletionTasks = [];
+                    (response.Items || []).forEach(function (_item) {
+                        var delRq = {
+                            TableName: settings.dynamoDb.tableNames.transactionsTableName,
+                            Key: {
+                                Id: item.Id
+                            }
+                        };
+                        deletionTasks.push(client.deleteItem(delRq).promise());
+                    });
+
+                    Promise.all(deletionTasks).then(function(){
+                        if (response.LastEvaluatedKey) {
+                            request.ExclusiveStartKey = response.LastEvaluatedKey;
+                            iterate();
+                            return;
+                        }
+
+                        resolve();
+                    }, function(error){
+                        reject(error);
+                    })
+                });
+            }
+
+            iterate();
+        });
+    }
     
     return {
         batchWriteTransactions: batchWriteTransactions,
-        getDealerTransactions: getDealerTransactions
+        getDealerTransactions: getDealerTransactions,
+        deleteAllTransactions: deleteAllTransactions
     };
 })();

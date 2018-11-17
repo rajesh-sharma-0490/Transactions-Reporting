@@ -7,6 +7,7 @@ const app = express();
 const uploadData = require('./uploadData');
 const getDealerNames = require('./getDealerNames');
 const queryVendorData = require('./queryDealerData');
+const clearAllData = require('./clearAllData');
 
 app.use(function (req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
@@ -20,5 +21,6 @@ app.use(awsServerlessExpressMiddleware.eventContext());
 app.post('/uploadData', uploadData.handler);
 app.get('/dealerNames', getDealerNames.handler);
 app.get('/dealer/:dealerName', queryVendorData.handler);
+app.get('/clearAllData', clearAllData.handler);
 
 module.exports = app;

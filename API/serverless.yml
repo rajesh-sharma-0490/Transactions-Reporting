@@ -1,0 +1,109 @@
+service: transactions-reporting
+provider:
+  name: aws
+  runtime: nodejs8.10
+  stage: ${opt:stage}
+  region: ${opt:region}
+  memorySize: 128
+  timeout: 500
+  environment:
+    transactionsTableName: ${opt:stage}-${opt:company}-transactions
+    dealersTableName: ${opt:stage}-${opt:company}-dealers
+    awsRegion: ${opt:region}
+  versionFunctions: false
+  stackTags:
+   Environment: ${opt:stage}-${opt:company}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:BatchGetItem
+        - dynamodb:BatchWriteItem
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.transactionsTableName}*"
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:BatchGetItem
+        - dynamodb:BatchWriteItem
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.dealersTableName}*"
+functions:
+  transactionsReportingApi: 
+    name: ${opt:stage}-${opt:company}-transactions-reporting
+    handler: src/lambda.handler
+    package:
+      include:
+        - src/**
+        - node_modules/**
+    environment:
+      transactionsTableName: ${opt:stage}-${opt:company}-transactions
+      dealersTableName: ${opt:stage}-${opt:company}-dealers
+    events:
+      - http:
+          path: /{proxy+}
+          method: any
+          cors:
+              origins:
+                - '*'
+              headers:
+                - Content-Type
+                - X-Amz-Date
+                - Authorization
+                - X-Api-Key
+                - X-Amz-Security-Token
+              allowCredentials: true
+
+# The "Resources" your "Functions" use.  Raw AWS CloudFormation goes in here.
+resources:
+  Resources:
+    transactionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${opt:stage}-${opt:company}-transactions
+        AttributeDefinitions:
+          - AttributeName: challanNo
+            AttributeType: S
+          - AttributeName: dealerName
+            AttributeType: S
+          - AttributeName: materialName
+            AttributeType: S
+        KeySchema:
+          - AttributeName: challanNo
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: dealerMaterialIndex
+            KeySchema:
+              - AttributeName: dealerName
+                KeyType: HASH
+              - AttributeName: materialName
+                KeyType: RANGE
+            ProvisionedThroughput:
+              ReadCapacityUnits: 10
+              WriteCapacityUnits: 8
+            Projection:
+              ProjectionType: ALL
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 8
+    dealerssTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${opt:stage}-${opt:company}-dealers
+        AttributeDefinitions:
+          - AttributeName: dealerName
+            AttributeType: S
+        KeySchema:
+          - AttributeName: dealerName
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 2
+          WriteCapacityUnits: 2

@@ -159,6 +159,7 @@
                 })
                 .then(function(){
                     that.fire('show-toast', 'Files uploaded successfully.');
+                    that.fire('files-uploaded');
                 })
                 .catch(function(error){
 

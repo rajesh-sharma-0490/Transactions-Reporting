@@ -71,8 +71,54 @@ module.exports = (function(){
         });
     }
 
+
+    const deleteAllDealerNames = function(){
+        var client = awsServices.getDynamoDBClient();
+
+        var request = {
+            TableName: settings.dynamoDb.tableNames.dealersTableName
+        };
+
+        return new Promise(function (resolve, reject) {
+            function iterate() {
+                client.scan(request, function (err, response) {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+
+                    var deletionTasks = [];
+                    (response.Items || []).forEach(function (_item) {
+                        var delRq = {
+                            TableName: settings.dynamoDb.tableNames.dealersTableName,
+                            Key: {
+                                Id: item.Id
+                            }
+                        };
+                        deletionTasks.push(client.deleteItem(delRq).promise());
+                    });
+
+                    Promise.all(deletionTasks).then(function(){
+                        if (response.LastEvaluatedKey) {
+                            request.ExclusiveStartKey = response.LastEvaluatedKey;
+                            iterate();
+                            return;
+                        }
+
+                        resolve();
+                    }, function(error){
+                        reject(error);
+                    })
+                });
+            }
+
+            iterate();
+        });
+    }
+
     return {
         batchWriteDealerNames: batchWriteDealerNames,
-        getAllDealerNames: getAllDealerNames
+        getAllDealerNames: getAllDealerNames,
+        deleteAllDealerNames: deleteAllDealerNames
     };
 })();

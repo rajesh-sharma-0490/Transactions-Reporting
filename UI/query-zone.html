@@ -196,9 +196,15 @@
                     that._dealerName = this.value;
                 });
 
+                this.updateDealerNames();
+            },
+
+            updateDealerNames: function(){
                 this.fire('show-loader');
+                var that = this;
                 this._getDealerNames().then(function(response){
                     var dealerNames = response.data.dealerNames;
+                    var selectControl = $(that.querySelector('#dealerName'));
                     selectControl.select2({
                         data: dealerNames,
                         placeholder: 'Choose a dealer',

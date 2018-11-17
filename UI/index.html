@@ -50,12 +50,15 @@
     </head>
     <body>
         <div id="loader"></div>
-        <drop-zone api-url='http://localhost:9000'></drop-zone>
-        <query-zone api-url='http://localhost:9000'></query-zone>
+        <drop-zone api-url='https://ariyhfsxd8.execute-api.us-east-1.amazonaws.com/prod'></drop-zone>
+        <query-zone api-url='https://ariyhfsxd8.execute-api.us-east-1.amazonaws.com/prod'></query-zone>
         <paper-toast id='toast'></paper-toast>
 
         <script>
-            [$('drop-zone'), $('query-zone')].forEach(function(element){
+            var dropZone = $('drop-zone');
+            var queryZone = $('query-zone');
+
+            [dropZone, queryZone].forEach(function(element){
                 element.on('show-loader', function(){
                     $('#loader').show();
                 });
@@ -70,6 +73,10 @@
                     toast.open();
                 })
             });
+
+            dropZone.on('files-uploaded', function(){
+                queryZone[0].updateDealerNames();
+            })
         </script>
     </body>
 </html>
